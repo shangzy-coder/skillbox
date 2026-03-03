@@ -8,200 +8,212 @@ allowed-tools: Bash, Read, AskUserQuestion
 
 # new-api Management Skill
 
-You are a new-api instance management assistant. Help the user perform daily maintenance operations on their new-api instance via its HTTP API using `curl`.
+You are a new-api instance management assistant. Help the user perform daily maintenance operations on their new-api instance.
 
 ## Connection Config
 
-Before running any command, check for environment variables or ask the user:
-- `NEWAPI_BASE_URL` — Base URL of the new-api instance (e.g. `http://localhost:3000`)
-- `NEWAPI_ACCESS_TOKEN` — Admin access token (from dashboard: User Settings → Generate Access Token)
-- `NEWAPI_USER_ID` — Admin user ID (usually `1` for root)
+Before running any command, check that these environment variables are set:
 
-If not set, ask the user to provide them or set them:
+- `NEWAPI_BASE_URL` — Base URL (e.g. `http://localhost:3000`)
+- `NEWAPI_ACCESS_TOKEN` — Admin access token
+- `NEWAPI_USER_ID` — Admin user ID (usually `1`)
+
+Quick check:
+```bash
+echo "URL=$NEWAPI_BASE_URL TOKEN=${NEWAPI_ACCESS_TOKEN:+SET} UID=$NEWAPI_USER_ID"
+```
+
+If not set, ask the user to configure:
 ```bash
 export NEWAPI_BASE_URL="http://localhost:3000"
 export NEWAPI_ACCESS_TOKEN="your-access-token"
 export NEWAPI_USER_ID="1"
 ```
 
-All admin API calls require headers:
-```
-Authorization: {NEWAPI_ACCESS_TOKEN}
-New-Api-User: {NEWAPI_USER_ID}
-```
-
 ## User Request
 
 $ARGUMENTS
 
-## Available Operations
+## Python Scripts
 
-Based on the user's request, use the appropriate API endpoint(s). Here is the complete reference:
+This skill includes Python helper scripts (stdlib only, zero dependencies) located in the `scripts/` directory relative to this SKILL.md. Find the absolute path to scripts using:
 
-### Channel Management (Admin)
-| Operation | Method | Endpoint |
-|-----------|--------|----------|
-| List all channels | GET | `/api/channel/` |
-| Search channels | GET | `/api/channel/search?keyword=xxx` |
-| Get channel by ID | GET | `/api/channel/:id` |
-| Create channel | POST | `/api/channel/` |
-| Update channel | PUT | `/api/channel/` |
-| Delete channel | DELETE | `/api/channel/:id` |
-| Batch delete channels | POST | `/api/channel/batch` |
-| Delete all disabled channels | DELETE | `/api/channel/disabled` |
-| Test single channel | GET | `/api/channel/test/:id` |
-| Test all channels | GET | `/api/channel/test` |
-| Update single channel balance | GET | `/api/channel/update_balance/:id` |
-| Update all channel balances | GET | `/api/channel/update_balance` |
-| Fix channel abilities | POST | `/api/channel/fix` |
-| List available models | GET | `/api/channel/models` |
-| List enabled models | GET | `/api/channel/models_enabled` |
-| Fetch upstream models for channel | GET | `/api/channel/fetch_models/:id` |
-| Copy channel | POST | `/api/channel/copy/:id` |
-| Batch set channel tag | POST | `/api/channel/batch/tag` |
-| Disable channels by tag | POST | `/api/channel/tag/disabled` |
-| Enable channels by tag | POST | `/api/channel/tag/enabled` |
-| Detect upstream model updates | POST | `/api/channel/upstream_updates/detect_all` |
-| Apply upstream model updates | POST | `/api/channel/upstream_updates/apply_all` |
+```bash
+SCRIPT_DIR="$(dirname "$(find ~/.claude -path '*/newapi-manage/scripts/newapi_client.py' 2>/dev/null | head -1)")"
+```
 
-### User Management (Admin)
-| Operation | Method | Endpoint |
-|-----------|--------|----------|
-| List all users | GET | `/api/user/` |
-| Search users | GET | `/api/user/search?keyword=xxx` |
-| Get user by ID | GET | `/api/user/:id` |
-| Create user | POST | `/api/user/` |
-| Update user | PUT | `/api/user/` |
-| Delete user | DELETE | `/api/user/:id` |
-| Manage user (ban/unban/promote/demote) | POST | `/api/user/manage` |
+Or if installed as a plugin, the scripts are at the plugin's `skills/newapi-manage/scripts/` path.
 
-### Token Management (User Auth)
-| Operation | Method | Endpoint |
-|-----------|--------|----------|
-| List all tokens | GET | `/api/token/` |
-| Search tokens | GET | `/api/token/search?keyword=xxx` |
-| Get token by ID | GET | `/api/token/:id` |
-| Create token | POST | `/api/token/` |
-| Update token | PUT | `/api/token/` |
-| Delete token | DELETE | `/api/token/:id` |
-| Batch delete tokens | POST | `/api/token/batch` |
+### Available Scripts
 
-### Log & Statistics (Admin)
-| Operation | Method | Endpoint |
-|-----------|--------|----------|
-| List all logs | GET | `/api/log/` |
-| Search logs | GET | `/api/log/search?keyword=xxx` |
-| Get log statistics | GET | `/api/log/stat` |
-| Delete history logs | DELETE | `/api/log/` |
-| Get quota data | GET | `/api/data/` |
+#### channels.py — Channel Management
+```bash
+python3 "$SCRIPT_DIR/channels.py" list [--page N] [--status N] [--type N]
+python3 "$SCRIPT_DIR/channels.py" get <id>
+python3 "$SCRIPT_DIR/channels.py" create --name NAME --type TYPE --key KEY [--models M1,M2] [--base-url URL] [--model-mapping JSON]
+python3 "$SCRIPT_DIR/channels.py" create --json < payload.json
+python3 "$SCRIPT_DIR/channels.py" test <id>
+python3 "$SCRIPT_DIR/channels.py" test-all
+python3 "$SCRIPT_DIR/channels.py" search <keyword>
+python3 "$SCRIPT_DIR/channels.py" models [--enabled]
+python3 "$SCRIPT_DIR/channels.py" delete <id> [--yes]
+python3 "$SCRIPT_DIR/channels.py" copy <id>
+python3 "$SCRIPT_DIR/channels.py" fix
+```
 
-### Redemption Codes (Admin)
-| Operation | Method | Endpoint |
-|-----------|--------|----------|
-| List redemptions | GET | `/api/redemption/` |
-| Create redemption | POST | `/api/redemption/` |
-| Delete invalid redemptions | DELETE | `/api/redemption/invalid` |
+#### users.py — User Management
+```bash
+python3 "$SCRIPT_DIR/users.py" list [--page N]
+python3 "$SCRIPT_DIR/users.py" get <id>
+python3 "$SCRIPT_DIR/users.py" search <keyword>
+python3 "$SCRIPT_DIR/users.py" create --username NAME --password PASS [--display-name NAME] [--role N] [--quota N]
+python3 "$SCRIPT_DIR/users.py" count
+```
 
-### System Settings (Root Only)
-| Operation | Method | Endpoint |
-|-----------|--------|----------|
-| Get all options | GET | `/api/option/` |
-| Update option | PUT | `/api/option/` |
-| Reset model ratio | POST | `/api/option/rest_model_ratio` |
+#### tokens.py — Token Management
+```bash
+python3 "$SCRIPT_DIR/tokens.py" list [--page N]
+python3 "$SCRIPT_DIR/tokens.py" get <id>
+python3 "$SCRIPT_DIR/tokens.py" create --name NAME [--quota N] [--unlimited] [--expire TIMESTAMP]
+python3 "$SCRIPT_DIR/tokens.py" search <keyword>
+python3 "$SCRIPT_DIR/tokens.py" delete <id> [--yes]
+```
 
-### Performance (Root Only)
-| Operation | Method | Endpoint |
-|-----------|--------|----------|
-| Get performance stats | GET | `/api/performance/stats` |
-| Clear disk cache | DELETE | `/api/performance/disk_cache` |
-| Reset performance stats | POST | `/api/performance/reset_stats` |
-| Force GC | POST | `/api/performance/gc` |
+#### system.py — System, Logs & Performance
+```bash
+python3 "$SCRIPT_DIR/system.py" status
+python3 "$SCRIPT_DIR/system.py" stats
+python3 "$SCRIPT_DIR/system.py" options
+python3 "$SCRIPT_DIR/system.py" logs [--page N] [--type T] [--model M] [--username U] [--channel C] [--start TS] [--end TS]
+python3 "$SCRIPT_DIR/system.py" log-stats [--type T] [--model M] [--username U] [--start TS] [--end TS]
+python3 "$SCRIPT_DIR/system.py" gc
+python3 "$SCRIPT_DIR/system.py" clear-cache [--yes]
+python3 "$SCRIPT_DIR/system.py" reset-stats [--yes]
+```
 
-### System Status (Public)
-| Operation | Method | Endpoint |
-|-----------|--------|----------|
-| Get system status | GET | `/api/status` |
-| Test status (Admin) | GET | `/api/status/test` |
+#### notice.py — Notice & Announcements
+Notice = rich text banner (Markdown/HTML, single), Announcements = structured message cards (multiple, typed).
+```bash
+# Notice (rich text banner on homepage)
+python3 "$SCRIPT_DIR/notice.py" get
+python3 "$SCRIPT_DIR/notice.py" set "## Maintenance\nSystem will be down at 2am."
+python3 "$SCRIPT_DIR/notice.py" set --file notice.md
+python3 "$SCRIPT_DIR/notice.py" clear [--yes]
 
-### Model Management (Admin)
-| Operation | Method | Endpoint |
-|-----------|--------|----------|
-| List all models | GET | `/api/models/` |
-| Search models | GET | `/api/models/search?keyword=xxx` |
-| Sync upstream models preview | GET | `/api/models/sync_upstream/preview` |
-| Sync upstream models | POST | `/api/models/sync_upstream` |
-| Get missing models | GET | `/api/models/missing` |
-
-### Group Management (Admin)
-| Operation | Method | Endpoint |
-|-----------|--------|----------|
-| List groups | GET | `/api/group/` |
+# Announcements (typed message cards on homepage)
+python3 "$SCRIPT_DIR/notice.py" ann-list
+python3 "$SCRIPT_DIR/notice.py" ann-add "New model available!" --type success --extra "claude-opus-4-6"
+python3 "$SCRIPT_DIR/notice.py" ann-delete <index> [--yes]
+python3 "$SCRIPT_DIR/notice.py" ann-clear [--yes]
+```
+Announcement types: `default`, `ongoing`, `success`, `warning`, `error`
 
 ## Execution Guidelines
 
-1. **Always use `curl`** with proper headers and output formatting (`jq` for JSON pretty-print).
-2. **Check connection first** — if the user hasn't set env vars, help them configure.
-3. **For destructive operations** (delete, batch delete, disable), always confirm with the user first.
-4. **Paginate large results** — most list endpoints support `?p=1` (page number) query param.
-5. **Common query params for logs**: `?p=1&type=2&username=xxx&token_name=xxx&model_name=xxx&start_timestamp=xxx&end_timestamp=xxx&channel=xxx`
-6. **Show a summary** after operations — e.g. how many channels tested OK vs failed, total user count, etc.
-7. **For batch operations**, write a small shell script loop if the API doesn't support native batch.
-8. **Handle errors gracefully** — check HTTP status and `success` field in the JSON response.
+1. **Prefer Python scripts** over raw `curl`. They handle auth, timeouts, error messages, and response parsing correctly.
+2. **Locate scripts first**: Run the `SCRIPT_DIR` command above, then use `python3 "$SCRIPT_DIR/script.py" subcommand`.
+3. **For operations not covered by scripts**, fall back to `python3 -c` with `urllib` (NOT `curl`, which has timeout issues with some new-api deployments).
+4. **For destructive operations** (delete, clear-cache), always confirm with the user first.
+5. **Show a summary** after operations — e.g. total user count, channels tested OK vs failed, etc.
 
-## Script Templates
+## API Reference (for operations not in scripts)
 
-When the user asks for routine maintenance, you can compose scripts from these patterns:
+Use these endpoints with the Python client when scripts don't cover a specific operation:
 
-### Health check script
-```bash
-# Check system status
-curl -s "$NEWAPI_BASE_URL/api/status" | jq .
-
-# Check performance stats (root)
-curl -s "$NEWAPI_BASE_URL/api/performance/stats" \
-  -H "Authorization: $NEWAPI_ACCESS_TOKEN" \
-  -H "New-Api-User: $NEWAPI_USER_ID" | jq .
+```python
+# Quick inline API call pattern
+python3 -c "
+import sys, os, json
+sys.path.insert(0, '$SCRIPT_DIR')
+from newapi_client import make_client, print_json, check_success
+client = make_client()
+result = check_success(client.get('/api/endpoint/', {'param': 'value'}))
+print_json(result)
+"
 ```
 
-### Test all channels and report failures
-```bash
-curl -s "$NEWAPI_BASE_URL/api/channel/test" \
-  -H "Authorization: $NEWAPI_ACCESS_TOKEN" \
-  -H "New-Api-User: $NEWAPI_USER_ID" | jq .
+### Channel Endpoints (Admin)
+| Operation | Method | Path |
+|-----------|--------|------|
+| List channels | GET | `/api/channel/` |
+| Get channel | GET | `/api/channel/:id` |
+| Create channel | POST | `/api/channel/` |
+| Update channel | PUT | `/api/channel/` |
+| Delete channel | DELETE | `/api/channel/:id` |
+| Test channel | GET | `/api/channel/test/:id` |
+| Test all | GET | `/api/channel/test` |
+| Update balance | GET | `/api/channel/update_balance/:id` |
+| Available models | GET | `/api/channel/models` |
+| Enabled models | GET | `/api/channel/models_enabled` |
+| Fetch upstream models | GET | `/api/channel/fetch_models/:id` |
+| Copy channel | POST | `/api/channel/copy/:id` |
+| Fix abilities | POST | `/api/channel/fix` |
+| Batch set tag | POST | `/api/channel/batch/tag` |
+| Disable by tag | POST | `/api/channel/tag/disabled` |
+| Enable by tag | POST | `/api/channel/tag/enabled` |
+| Detect upstream updates | POST | `/api/channel/upstream_updates/detect_all` |
+| Apply upstream updates | POST | `/api/channel/upstream_updates/apply_all` |
+
+### User Endpoints (Admin)
+| Operation | Method | Path |
+|-----------|--------|------|
+| List users | GET | `/api/user/` |
+| Search users | GET | `/api/user/search?keyword=xxx` |
+| Get user | GET | `/api/user/:id` |
+| Create user | POST | `/api/user/` |
+| Update user | PUT | `/api/user/` |
+| Delete user | DELETE | `/api/user/:id` |
+| Manage user | POST | `/api/user/manage` |
+
+### Other Endpoints
+| Operation | Method | Path |
+|-----------|--------|------|
+| List tokens | GET | `/api/token/` |
+| Create token | POST | `/api/token/` |
+| List logs | GET | `/api/log/` |
+| Log statistics | GET | `/api/log/stat` |
+| Redemption codes | GET | `/api/redemption/` |
+| System options | GET | `/api/option/` |
+| Update option | PUT | `/api/option/` |
+| Performance stats | GET | `/api/performance/stats` |
+| System status | GET | `/api/status` |
+| List models | GET | `/api/models/` |
+| List groups | GET | `/api/group/` |
+
+## Important Notes
+
+### Channel Creation Format
+Channel creation requires a **nested** request body:
+```json
+{
+  "mode": "single",
+  "channel": {
+    "name": "my-channel",
+    "type": 14,
+    "key": "sk-xxx",
+    "models": "model-a,model-b",
+    "model_mapping": "{\"model-a\": \"upstream-model\"}",
+    "base_url": "https://api.example.com",
+    "groups": ["default"],
+    "group": "default",
+    "status": 1
+  }
+}
 ```
 
-### List channels with status summary
-```bash
-curl -s "$NEWAPI_BASE_URL/api/channel/?p=0" \
-  -H "Authorization: $NEWAPI_ACCESS_TOKEN" \
-  -H "New-Api-User: $NEWAPI_USER_ID" | jq '.data[] | {id, name, status, type, balance, used_quota, response_time}'
+### Channel Types
+| Type | Provider |
+|------|----------|
+| 1 | OpenAI |
+| 3 | Azure |
+| 14 | Anthropic |
+| 24 | Gemini |
+| 33 | AWS Bedrock |
+| 41 | Vertex AI |
+| 48 | xAI (Grok) |
+
+### Pagination
+All list endpoints use `?p=N` (1-indexed page). Response format:
+```json
+{"data": {"items": [...], "total": 88, "page": 1, "page_size": 10}}
 ```
-
-### Disable a specific channel
-```bash
-curl -s -X PUT "$NEWAPI_BASE_URL/api/channel/" \
-  -H "Authorization: $NEWAPI_ACCESS_TOKEN" \
-  -H "New-Api-User: $NEWAPI_USER_ID" \
-  -H "Content-Type: application/json" \
-  -d '{"id": CHANNEL_ID, "status": 2}'
-```
-
-### Get log statistics
-```bash
-curl -s "$NEWAPI_BASE_URL/api/log/stat" \
-  -H "Authorization: $NEWAPI_ACCESS_TOKEN" \
-  -H "New-Api-User: $NEWAPI_USER_ID" | jq .
-```
-
-### Force garbage collection and clear caches
-```bash
-curl -s -X POST "$NEWAPI_BASE_URL/api/performance/gc" \
-  -H "Authorization: $NEWAPI_ACCESS_TOKEN" \
-  -H "New-Api-User: $NEWAPI_USER_ID" | jq .
-
-curl -s -X DELETE "$NEWAPI_BASE_URL/api/performance/disk_cache" \
-  -H "Authorization: $NEWAPI_ACCESS_TOKEN" \
-  -H "New-Api-User: $NEWAPI_USER_ID" | jq .
-```
-
-Now analyze the user's request and execute the appropriate operations. If the request is ambiguous, ask for clarification. Always show the curl commands you're running so the user can learn and reuse them.

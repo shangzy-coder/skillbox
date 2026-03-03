@@ -30,10 +30,17 @@ cp -r skills/newapi-manage/ your-project/.claude/skills/newapi-manage/
 ```
 skillbox/
 ├── .claude-plugin/
-│   └── plugin.json        # Plugin manifest
+│   └── plugin.json              # Plugin manifest
 ├── skills/
 │   └── newapi-manage/
-│       └── SKILL.md       # Skill definition (YAML frontmatter + instructions)
+│       ├── SKILL.md             # Skill definition (YAML frontmatter + instructions)
+│       └── scripts/             # Python helper scripts (stdlib only)
+│           ├── newapi_client.py # Shared HTTP client
+│           ├── channels.py      # Channel management
+│           ├── users.py         # User management
+│           ├── tokens.py        # Token management
+│           ├── system.py        # System, logs & performance
+│           └── notice.py        # Notice & announcements
 ├── LICENSE
 └── README.md
 ```
