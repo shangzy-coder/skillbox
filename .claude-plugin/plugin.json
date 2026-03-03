@@ -1,0 +1,12 @@
+{
+  "name": "skillbox",
+  "description": "A curated collection of Claude Code skills for DevOps, API management, and daily workflows.",
+  "version": "0.1.0",
+  "author": {
+    "name": "evan"
+  },
+  "repository": "https://github.com/evan/skillbox",
+  "license": "MIT",
+  "keywords": ["devops", "api-management", "newapi", "admin-tools"],
+  "skills": "./skills/"
+}
