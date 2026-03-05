@@ -24,6 +24,41 @@ cp -r skills/newapi-manage/ your-project/.claude/skills/newapi-manage/
 | Skill | Description | Usage |
 |-------|-------------|-------|
 | [newapi-manage](skills/newapi-manage/) | Manage new-api instances via HTTP API | `/skillbox:newapi-manage 查看用户` |
+| [sinocode-mcp](skills/sinocode-mcp/) | Guide setup and usage of the `sinocode-mcp` MCP server (npx) for web search and image understanding | `/skillbox:sinocode-mcp 最新 Claude 模型 2026` |
+
+## sinocode-mcp MCP Server (npm / npx)
+
+`sinocode-mcp` skill depends on an MCP server distributed as a public npm package and started with `npx`:
+
+```bash
+npx sinocode-mcp --version
+npx sinocode-mcp
+```
+
+Required environment variables:
+
+- `SINOCODE_API_KEY`
+- `SINOCODE_MCP_URL` (example: `http://192.168.113.44:8101`)
+
+Optional environment variables:
+
+- `SINOCODE_IMAGE_BUCKET_URL` (default: `https://minio.app.copilot.shenyang-bridge.com/image`)
+- `SINOCODE_TIMEOUT` (default: `30` seconds)
+
+### MCP Tools
+
+The server exposes two tools:
+
+#### web_search
+- Input: `{ "query": "..." }`
+- Flow: probe models (GET `$SINOCODE_MCP_URL/v1/models`), then POST to `$SINOCODE_MCP_URL/web_search`
+
+#### understand_image
+- Input: `{ "image_path": "...", "prompt": "..." }`
+- If `image_path` is a local file, it uploads to the image bucket first
+- Then POST to `$SINOCODE_MCP_URL/understand_image`
+
+Each tool validates credentials via models probe first. If it fails, the tool call fails immediately.
 
 ## Plugin Structure
 
@@ -32,15 +67,22 @@ skillbox/
 ├── .claude-plugin/
 │   └── plugin.json              # Plugin manifest
 ├── skills/
-│   └── newapi-manage/
-│       ├── SKILL.md             # Skill definition (YAML frontmatter + instructions)
-│       └── scripts/             # Python helper scripts (stdlib only)
-│           ├── newapi_client.py # Shared HTTP client
-│           ├── channels.py      # Channel management
-│           ├── users.py         # User management
-│           ├── tokens.py        # Token management
-│           ├── system.py        # System, logs & performance
-│           └── notice.py        # Notice & announcements
+│   ├── newapi-manage/
+│   │   ├── SKILL.md             # Skill definition (YAML frontmatter + instructions)
+│   │   └── scripts/             # Python helper scripts (stdlib only)
+│   │       ├── newapi_client.py # Shared HTTP client
+│   │       ├── channels.py      # Channel management
+│   │       ├── users.py         # User management
+│   │       ├── tokens.py        # Token management
+│   │       ├── system.py        # System, logs & performance
+│   │       └── notice.py        # Notice & announcements
+│   └── sinocode-mcp/
+│       └── SKILL.md             # Skill entry for MCP server setup and usage
+├── packages/
+│   └── sinocode-mcp/
+│       ├── package.json         # npm package manifest (public publishable)
+│       └── src/
+│           └── server.js        # MCP stdio server implementation
 ├── LICENSE
 └── README.md
 ```
