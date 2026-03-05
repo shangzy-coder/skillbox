@@ -1,26 +1,29 @@
 {
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "skillbox",
-  "version": "1.0",
+  "description": "A curated collection of Claude Code skills for DevOps, API management, and daily workflows.",
   "owner": {
-    "type": "github",
-    "name": "shangzy-coder"
+    "name": "evan",
+    "email": "evan@example.com"
   },
   "plugins": [
     {
       "name": "newapi-manage",
-      "source": "https://github.com/shangzy-coder/skillbox",
+      "author": {
+        "name": "evan",
+        "email": "evan@example.com"
+      },
       "description": "Manage new-api instances via HTTP API - 查看用户、频道、Token、系统状态等",
-      "skills": [
-        "./skills/newapi-manage/"
-      ]
+      "source": "./skills/newapi-manage"
     },
     {
       "name": "sinocode-mcp",
-      "source": "https://github.com/shangzy-coder/skillbox",
+      "author": {
+        "name": "evan",
+        "email": "evan@example.com"
+      },
       "description": "Guide setup and usage of the sinocode-mcp MCP server for web search and image understanding",
-      "skills": [
-        "./skills/sinocode-mcp/"
-      ]
+      "source": "./skills/sinocode-mcp"
     }
   ]
 }
