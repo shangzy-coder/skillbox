@@ -1,0 +1,21 @@
+{
+  "version": "1.0",
+  "plugins": [
+    {
+      "name": "newapi-manage",
+      "description": "Manage new-api instances via HTTP API - 查看用户、频道、Token、系统状态等",
+      "repository": "https://github.com/shangzy-coder/skillbox",
+      "skills": [
+        "./skills/newapi-manage/"
+      ]
+    },
+    {
+      "name": "sinocode-mcp",
+      "description": "Guide setup and usage of the sinocode-mcp MCP server for web search and image understanding",
+      "repository": "https://github.com/shangzy-coder/skillbox",
+      "skills": [
+        "./skills/sinocode-mcp/"
+      ]
+    }
+  ]
+}
