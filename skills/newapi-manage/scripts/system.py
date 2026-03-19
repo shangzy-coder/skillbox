@@ -10,6 +10,7 @@ Usage:
   python3 system.py gc
   python3 system.py clear-cache
   python3 system.py reset-stats
+  python3 system.py set-option --key KEY --value VALUE
 """
 
 import argparse
@@ -17,7 +18,7 @@ import sys
 import os
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from newapi_client import make_client, print_json, check_success, confirm
+from newapi_client import make_client, print_json, check_success, confirm, write_json, paginate
 
 
 def cmd_status(client, args):
@@ -36,7 +37,7 @@ def cmd_options(client, args):
 
 
 def cmd_logs(client, args):
-    params = {"p": args.page}
+    params = {}
     if args.type is not None:
         params["type"] = args.type
     if args.model:
@@ -54,10 +55,10 @@ def cmd_logs(client, args):
     if args.request_id:
         params["request_id"] = args.request_id
 
-    result = check_success(client.get("/api/log/", params))
-    wrapper = result.get("data", {})
-    data = wrapper.get("items", []) if isinstance(wrapper, dict) else wrapper
-    total = wrapper.get("total", len(data)) if isinstance(wrapper, dict) else len(data)
+    data, total, wrapper = paginate(client, "/api/log/", params, args.page)
+    if args.output:
+        write_json(wrapper, args.output)
+        return
     print(f"Logs (page {args.page}, total {total}):")
     if not data:
         print("  (none)")
@@ -116,6 +117,11 @@ def cmd_reset_stats(client, args):
     print_json(result)
 
 
+def cmd_set_option(client, args):
+    result = check_success(client.put("/api/option/", {"key": args.key, "value": args.value}))
+    print(f"Option '{args.key}' updated.")
+
+
 def main():
     parser = argparse.ArgumentParser(description="new-api system operations")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -131,7 +137,7 @@ def main():
 
     # logs
     p = sub.add_parser("logs", help="Query logs")
-    p.add_argument("--page", "-p", type=int, default=0)
+    p.add_argument("--page", "-p", type=int, default=1)
     p.add_argument("--type", type=int, default=None)
     p.add_argument("--model", type=str, default=None)
     p.add_argument("--username", type=str, default=None)
@@ -140,6 +146,7 @@ def main():
     p.add_argument("--request-id", type=str, default=None)
     p.add_argument("--start", type=int, default=None, help="Start timestamp (unix)")
     p.add_argument("--end", type=int, default=None, help="End timestamp (unix)")
+    p.add_argument("--output", "-o", type=str, default=None, help="Write JSON output to file")
 
     # log-stats
     p = sub.add_parser("log-stats", help="Log statistics")
@@ -160,6 +167,11 @@ def main():
     p = sub.add_parser("reset-stats", help="Reset performance stats")
     p.add_argument("--yes", "-y", action="store_true", help="Skip confirmation")
 
+    # set-option
+    p = sub.add_parser("set-option", help="Set a system option (Root only)")
+    p.add_argument("--key", required=True, type=str)
+    p.add_argument("--value", required=True, type=str)
+
     args = parser.parse_args()
     client = make_client()
 
@@ -172,6 +184,7 @@ def main():
         "gc": cmd_gc,
         "clear-cache": cmd_clear_cache,
         "reset-stats": cmd_reset_stats,
+        "set-option": cmd_set_option,
     }
     commands[args.command](client, args)
 

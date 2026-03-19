@@ -71,6 +71,7 @@ class NewAPIClient:
             "Authorization": self.token,
             "New-Api-User": self.user_id,
             "Content-Type": "application/json",
+            "User-Agent": "Mozilla/5.0 (compatible; NewAPI-CLI/1.0)",
         }
         data = None
         if body is not None:
@@ -140,6 +141,101 @@ def confirm(prompt="Are you sure? [y/N] "):
     return answer in ("y", "yes")
 
 
+def write_json(obj, path=None):
+    """Pretty-print JSON to stdout or write to file."""
+    content = ppjson(obj)
+    if path:
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(content)
+        print(f"Wrote {len(obj) if isinstance(obj, list) else 'data'} items to {path}")
+    else:
+        print(content)
+
+
+def paginate(client, endpoint, params=None, page=1):
+    """Fetch a paginated endpoint. Returns (items, total, wrapper)."""
+    if params is None:
+        params = {}
+    params["p"] = page
+    result = check_success(client.get(endpoint, params))
+    wrapper = result.get("data", {})
+    items = wrapper.get("items", []) if isinstance(wrapper, dict) else wrapper
+    total = wrapper.get("total", len(items)) if isinstance(wrapper, dict) else len(items)
+    return items, total, wrapper
+
+
+def get_option(client, key):
+    """Fetch a single system option value by key. Returns string or ''."""
+    result = check_success(client.get("/api/option/"))
+    data = result.get("data", [])
+    if isinstance(data, list):
+        for item in data:
+            if isinstance(item, dict) and item.get("key") == key:
+                return item.get("value", "")
+    elif isinstance(data, dict):
+        return data.get(key, "")
+    return ""
+
+
+def get_option_json(client, key):
+    """Fetch a system option and parse as JSON dict. Returns {} on failure."""
+    raw = get_option(client, key)
+    if not raw:
+        return {}
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        return {}
+
+
+def set_option(client, key, value):
+    """Set a system option. Value can be str or will be JSON-serialized."""
+    if not isinstance(value, str):
+        value = json.dumps(value, ensure_ascii=False)
+    check_success(client.put("/api/option/", {"key": key, "value": value}))
+
+
 def make_client():
     """Create a NewAPIClient from environment variables."""
     return NewAPIClient()
+
+
+def list_scripts():
+    """Auto-discover all management scripts and their descriptions.
+    Scans the scripts directory for .py files (excluding this one),
+    extracts the first line of each module docstring as description."""
+    import importlib.util
+    scripts_dir = os.path.dirname(os.path.abspath(__file__))
+    results = []
+    for fname in sorted(os.listdir(scripts_dir)):
+        if not fname.endswith(".py") or fname.startswith("_") or fname == "newapi_client.py":
+            continue
+        path = os.path.join(scripts_dir, fname)
+        try:
+            spec = importlib.util.spec_from_file_location(fname[:-3], path)
+            # Read just the docstring without executing the module
+            with open(path, "r", encoding="utf-8") as f:
+                content = f.read()
+            # Extract docstring: find first triple-quote block
+            for quote in ('"""', "'''"):
+                idx = content.find(quote)
+                if idx >= 0:
+                    end = content.find(quote, idx + 3)
+                    if end >= 0:
+                        doc = content[idx + 3:end].strip()
+                        desc = doc.split("\n")[0]  # first line only
+                        break
+            else:
+                desc = "(no description)"
+            results.append((fname, desc))
+        except Exception:
+            results.append((fname, "(error reading)"))
+    return results
+
+
+if __name__ == "__main__":
+    # When run directly, list all available scripts
+    scripts = list_scripts()
+    print(f"Available scripts ({len(scripts)}):")
+    for name, desc in scripts:
+        print(f"  {name:<20} {desc}")

@@ -20,23 +20,12 @@ import sys
 import os
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from newapi_client import make_client, print_json, check_success, confirm
-
-
-def _get_option(client, key):
-    """Get a single option value by key from the options list."""
-    result = check_success(client.get("/api/option/"))
-    data = result.get("data", [])
-    if isinstance(data, list):
-        for item in data:
-            if item.get("key") == key:
-                return item.get("value", "")
-    return ""
+from newapi_client import make_client, print_json, check_success, confirm, get_option, get_option_json, set_option
 
 
 def _get_announcements(client):
     """Get current announcements as a Python list."""
-    raw = _get_option(client, "console_setting.announcements")
+    raw = get_option(client, "console_setting.announcements")
     if not raw:
         return []
     try:
@@ -47,11 +36,7 @@ def _get_announcements(client):
 
 def _set_announcements(client, announcements):
     """Save announcements list back to the server."""
-    result = check_success(client.put("/api/option/", {
-        "key": "console_setting.announcements",
-        "value": json.dumps(announcements, ensure_ascii=False),
-    }))
-    return result
+    set_option(client, "console_setting.announcements", announcements)
 
 
 # -- Notice commands ----------------------------------------------------------
@@ -74,6 +59,9 @@ def cmd_set(client, args):
     if not content:
         print("Error: no content provided", file=sys.stderr)
         sys.exit(1)
+    if getattr(args, "dry_run", False):
+        print(f"[DRY RUN] Would set Notice to: {content[:100]}{'...' if len(content) > 100 else ''}")
+        return
     result = check_success(client.put("/api/option/", {
         "key": "Notice",
         "value": content,
@@ -82,6 +70,9 @@ def cmd_set(client, args):
 
 
 def cmd_clear(client, args):
+    if getattr(args, "dry_run", False):
+        print("[DRY RUN] Would clear the Notice banner")
+        return
     if not args.yes:
         if not confirm("Clear the Notice banner? [y/N] "):
             print("Cancelled.")
@@ -106,6 +97,9 @@ def cmd_ann_list(client, args):
 
 
 def cmd_ann_add(client, args):
+    if getattr(args, "dry_run", False):
+        print(f"[DRY RUN] Would add announcement: '{args.content}' (type={args.type})")
+        return
     announcements = _get_announcements(client)
     now = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     entry = {
@@ -121,6 +115,9 @@ def cmd_ann_add(client, args):
 
 
 def cmd_ann_delete(client, args):
+    if getattr(args, "dry_run", False):
+        print(f"[DRY RUN] Would delete announcement at index {args.index}")
+        return
     announcements = _get_announcements(client)
     if args.index < 0 or args.index >= len(announcements):
         print(f"Error: index {args.index} out of range (0-{len(announcements) - 1})", file=sys.stderr)
@@ -136,6 +133,9 @@ def cmd_ann_delete(client, args):
 
 
 def cmd_ann_clear(client, args):
+    if getattr(args, "dry_run", False):
+        print("[DRY RUN] Would clear all announcements")
+        return
     if not args.yes:
         if not confirm("Clear ALL announcements? [y/N] "):
             print("Cancelled.")
@@ -155,10 +155,12 @@ def main():
     p = sub.add_parser("set", help="Set Notice banner")
     p.add_argument("content", nargs="?", default="", help="Notice content (Markdown/HTML)")
     p.add_argument("--file", "-f", help="Read content from file")
+    p.add_argument("--dry-run", action="store_true", help="Preview without executing")
 
     # Notice: clear
     p = sub.add_parser("clear", help="Clear Notice banner")
     p.add_argument("--yes", "-y", action="store_true", help="Skip confirmation")
+    p.add_argument("--dry-run", action="store_true", help="Preview without executing")
 
     # Announcements: list
     sub.add_parser("ann-list", help="List all announcements")
@@ -170,15 +172,18 @@ def main():
                    choices=["default", "ongoing", "success", "warning", "error"],
                    help="Announcement type (default: default)")
     p.add_argument("--extra", "-e", help="Extra description (max 200 chars)")
+    p.add_argument("--dry-run", action="store_true", help="Preview without executing")
 
     # Announcements: delete
     p = sub.add_parser("ann-delete", help="Delete an announcement by index")
     p.add_argument("index", type=int, help="0-based index from ann-list")
     p.add_argument("--yes", "-y", action="store_true", help="Skip confirmation")
+    p.add_argument("--dry-run", action="store_true", help="Preview without executing")
 
     # Announcements: clear
     p = sub.add_parser("ann-clear", help="Clear all announcements")
     p.add_argument("--yes", "-y", action="store_true", help="Skip confirmation")
+    p.add_argument("--dry-run", action="store_true", help="Preview without executing")
 
     args = parser.parse_args()
     client = make_client()
